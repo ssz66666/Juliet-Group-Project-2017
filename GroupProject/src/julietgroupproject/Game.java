@@ -31,7 +31,7 @@ import com.jme3.scene.shape.Sphere.TextureMode;
 import com.jme3.scene.Node;
 import com.jme3.texture.Texture;
 import com.jme3.texture.Texture.WrapMode;
-import julietgroupproject.AlienCreation;
+//import julietgroupproject.AlienCreation;
 /**
  * Example 12 - how to give objects physical properties so they bounce and fall.
  * @author base code by double1984, updated by zathras
@@ -60,6 +60,11 @@ public class Game extends SimpleApplication {
   private static final float brickWidth  = 0.24f;
   private static final float brickHeight = 0.12f;
 
+  private Node ragDoll = new Node();
+    private Node shoulders;
+    private Vector3f upforce = new Vector3f(0, 200, 0);
+    private boolean applyForce = false;
+    
   static {
     /** Initialize the cannon ball geometry */
     sphere = new Sphere(32, 32, 0.4f, true, false);
@@ -87,19 +92,62 @@ public class Game extends SimpleApplication {
     inputManager.addListener(actionListener, "shoot");
     inputManager.addListener(actionListener, "restart");
     
-    createPhysicsTestWorld(rootNode, assetManager, bulletAppState.getPhysicsSpace());
+    //createPhysicsTestWorld(rootNode, assetManager, bulletAppState.getPhysicsSpace());
     /** Initialize the scene, materials, and physics space */
     initMaterials();
     initWall();
     //initFloor();
     initCrossHairs();
     initAlien();
+    //createRagDoll();
   }
+  
+  private void createRagDoll() {
+        shoulders = createLimb(0.2f, 1.0f, new Vector3f(0.00f, 1.5f, 0), true);
+        Node uArmL = createLimb(0.2f, 0.5f, new Vector3f(-0.75f, 0.8f, 0), false);
+        Node uArmR = createLimb(0.2f, 0.5f, new Vector3f(0.75f, 0.8f, 0), false);
+        Node lArmL = createLimb(0.2f, 0.5f, new Vector3f(-0.75f, -0.2f, 0), false);
+        Node lArmR = createLimb(0.2f, 0.5f, new Vector3f(0.75f, -0.2f, 0), false);
+        Node body = createLimb(0.2f, 1.0f, new Vector3f(0.00f, 0.5f, 0), false);
+        Node hips = createLimb(0.2f, 0.5f, new Vector3f(0.00f, -0.5f, 0), true);
+        Node uLegL = createLimb(0.2f, 0.5f, new Vector3f(-0.25f, -1.2f, 0), false);
+        Node uLegR = createLimb(0.2f, 0.5f, new Vector3f(0.25f, -1.2f, 0), false);
+        Node lLegL = createLimb(0.2f, 0.5f, new Vector3f(-0.25f, -2.2f, 0), false);
+        Node lLegR = createLimb(0.2f, 0.5f, new Vector3f(0.25f, -2.2f, 0), false);
+
+        join(body, shoulders, new Vector3f(0f, 1.4f, 0));
+        join(body, hips, new Vector3f(0f, -0.5f, 0));
+
+        join(uArmL, shoulders, new Vector3f(-0.75f, 1.4f, 0));
+        join(uArmR, shoulders, new Vector3f(0.75f, 1.4f, 0));
+        join(uArmL, lArmL, new Vector3f(-0.75f, .4f, 0));
+        join(uArmR, lArmR, new Vector3f(0.75f, .4f, 0));
+
+        join(uLegL, hips, new Vector3f(-.25f, -0.5f, 0));
+        join(uLegR, hips, new Vector3f(.25f, -0.5f, 0));
+        join(uLegL, lLegL, new Vector3f(-.25f, -1.7f, 0));
+        join(uLegR, lLegR, new Vector3f(.25f, -1.7f, 0));
+
+        ragDoll.attachChild(shoulders);
+        ragDoll.attachChild(body);
+        ragDoll.attachChild(hips);
+        ragDoll.attachChild(uArmL);
+        ragDoll.attachChild(uArmR);
+        ragDoll.attachChild(lArmL);
+        ragDoll.attachChild(lArmR);
+        ragDoll.attachChild(uLegL);
+        ragDoll.attachChild(uLegR);
+        ragDoll.attachChild(lLegL);
+        ragDoll.attachChild(lLegR);
+
+        rootNode.attachChild(ragDoll);
+        bulletAppState.getPhysicsSpace().addAll(ragDoll);
+    }
   
   public void initAlien() {
       
-      Node lNode = createLimb(3,1,new Vector3f(0f,5,0f),true);
-      Node rNode = createLimb(2,1,new Vector3f(0f,3,0f),false);
+      Node lNode = createLimb(0.6f,1f,new Vector3f(0f,5,0f),true);
+      Node rNode = createLimb(0.6f,0.2f,new Vector3f(0f,3,0f),false);
       Vector3f pos1 = getPosition(lNode);
       Vector3f pos2 = getPosition(rNode);
       Vector3f posHinge = new Vector3f(2f,4,0f);
