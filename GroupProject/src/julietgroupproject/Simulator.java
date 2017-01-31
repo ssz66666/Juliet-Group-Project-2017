@@ -10,7 +10,9 @@ import com.jme3.bullet.collision.shapes.MeshCollisionShape;
 import com.jme3.bullet.control.RigidBodyControl;
 import com.jme3.bullet.joints.ConeJoint;
 import com.jme3.bullet.joints.PhysicsJoint;
+import com.jme3.input.KeyInput;
 import com.jme3.input.controls.ActionListener;
+import com.jme3.input.controls.KeyTrigger;
 import com.jme3.input.controls.MouseButtonTrigger;
 import com.jme3.light.AmbientLight;
 import com.jme3.material.Material;
@@ -28,11 +30,9 @@ public class Simulator extends SimpleApplication implements ActionListener {
     private Node shoulders;
     private Vector3f upforce = new Vector3f(0, 200, 0);
     private boolean applyForce = false;
-
-    public static void main(String[] args) {
-        Simulator app = new Simulator();
-        app.start();
-    }
+    
+    private Node alien;
+    PhysicsJoint joint;
 
     @Override
     public void simpleInitApp() {
@@ -40,15 +40,18 @@ public class Simulator extends SimpleApplication implements ActionListener {
         stateManager.attach(bulletAppState);
         bulletAppState.setDebugEnabled(true);
         inputManager.addMapping("Pull ragdoll up", new MouseButtonTrigger(0));
+        inputManager.addMapping("Alien join 1", new KeyTrigger(KeyInput.KEY_G));
+        inputManager.addMapping("Alien join 2", new KeyTrigger(KeyInput.KEY_J));
+        
         inputManager.addListener(this, "Pull ragdoll up");
         createPhysicsTestWorld(rootNode, assetManager, bulletAppState.getPhysicsSpace());
-        //createRagDoll();
+        createRagDoll();
         initAlien();
     }
     
     public void initAlien() {
       
-      Node alien = new Node();
+      alien = new Node();
       
       Node lNode = createLimb(0.6f,1f,new Vector3f(0f,5,0f),true);
       Node rNode = createLimb(0.5f,0.2f,new Vector3f(0f,3,0f),false);
@@ -56,7 +59,7 @@ public class Simulator extends SimpleApplication implements ActionListener {
       Vector3f pos2 = getPosition(rNode);
       Vector3f posHinge = new Vector3f(2f,4,0f);
       
-      PhysicsJoint joint = join(lNode,rNode,posHinge);
+      joint = join(lNode,rNode,posHinge);
       
       alien.attachChild(lNode);
       alien.attachChild(rNode);
@@ -66,7 +69,7 @@ public class Simulator extends SimpleApplication implements ActionListener {
       bulletAppState.getPhysicsSpace().addAll(alien);
       
   }
-      public Vector3f getPosition(Node node){
+    public Vector3f getPosition(Node node){
       return node.getControl(RigidBodyControl.class).getPhysicsLocation();
   }
     private void createRagDoll() {
@@ -180,6 +183,16 @@ public class Simulator extends SimpleApplication implements ActionListener {
                 applyForce = false;
             }
         }
+        if ("Alien joint1".equals(string)) {
+            if (bln) {
+                alien.getControl(RigidBodyControl.class).activate();
+                // Need to work out how to apply torques
+                //joint.enableMotor(true, 1, .1f);
+                applyForce = true;
+            } else {
+                applyForce = false;
+            }
+        }
     }
 
     @Override
@@ -188,4 +201,9 @@ public class Simulator extends SimpleApplication implements ActionListener {
             shoulders.getControl(RigidBodyControl.class).applyForce(upforce, Vector3f.ZERO);
         }
     }
+    public static void main(String[] args) {
+        Simulator app = new Simulator();
+        app.start();
+    }
+
 }
