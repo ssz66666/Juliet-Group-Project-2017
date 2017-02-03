@@ -10,12 +10,13 @@ public class Block {
     public float width;
     public float height;
     public float length;
+    public float mass;
     public String collisionShapeType;
     public String hingeType;
     private LinkedList<Block> connectedLimbs = new LinkedList<Block>(); // List of Blocks that this is the parent of
     
 
-    public Block(Vector3f pos, Vector3f hingePos, float width, float height, float length, String collisionShapeType, String hingeType) {
+    public Block(Vector3f pos, Vector3f hingePos, float width, float height, float length, String collisionShapeType, String hingeType,float mass) {
         this.pos = pos;
         this.hingePos = hingePos;
         this.width = width;
@@ -23,6 +24,7 @@ public class Block {
         this.length = length;
         this.collisionShapeType = collisionShapeType;
         this.hingeType = hingeType;
+        this.mass = mass;
     }
 
     public Vector3f getPosition() {

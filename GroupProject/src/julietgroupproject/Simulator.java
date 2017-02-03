@@ -24,6 +24,7 @@ import com.jme3.scene.Geometry;
 import com.jme3.scene.Node;
 import com.jme3.scene.shape.Box;
 import com.jme3.scene.shape.Sphere;
+import com.jme3.system.Timer;
 
 public class Simulator extends SimpleApplication implements ActionListener {
 
@@ -32,8 +33,13 @@ public class Simulator extends SimpleApplication implements ActionListener {
     private Node shoulders;
     private Vector3f upforce = new Vector3f(0, 200, 0);
     private boolean applyForce = false;
-    float limbPower = 0.4f;
+    float limbPower = 1.0f;
     float limbTargetVolcity = 3f;
+    float time;
+    boolean doneStill1 = false;
+    boolean doneStill2 = false;
+    boolean doneStill3 = false;
+    
     Brain brainToControl;
     // Used for automatically giving limbs keys
     int[] jointKeys = {
@@ -56,21 +62,24 @@ public class Simulator extends SimpleApplication implements ActionListener {
         createRagDoll();
 
         // Create an example of an alien (what the editor will do)
-        Block rootBlock = new Block(new Vector3f( 0.0f, 0.0f, 0.0f), new Vector3f( 0.0f, 0.0f, 0.0f), 0.8f, 0.5f, 0.7f,"Capsule","Normal");
-        Block legLeft   = new Block(new Vector3f(-2.6f, 0.0f, 0.0f), new Vector3f(-1.3f, 0.0f, 0.0f), 1.1f, 0.1f, 0.6f,"Box","Normal");
-        Block legRight  = new Block(new Vector3f( 2.6f, 0.0f, 0.0f), new Vector3f( 1.3f, 0.0f, 0.0f), 1.1f, 0.1f, 0.6f,"Box","Normal");
-        Block legRight2 = new Block(new Vector3f( 1.9f, 0.0f, 0.0f), new Vector3f( 1.0f, 0.0f, 0.0f), 0.6f, 0.1f, 0.6f,"Box","Normal");
-        Block legRight3 = new Block(new Vector3f( 0.0f, 0.0f, 1.6f), new Vector3f( 0.0f, 0.0f, 0.8f), 0.6f, 0.1f, 0.6f,"Box","Xaxis");
+        Block rootBlock = new Block(new Vector3f( 0.0f, 0.0f, 0.0f), new Vector3f( 0.0f, 0.0f, 0.0f), 0.8f, 0.5f, 0.7f,"Capsule","Normal",2.2f);
+        Block legLeft   = new Block(new Vector3f(-2.6f, 0.0f, 0.0f), new Vector3f(-1.3f, 0.0f, 0.0f), 1.1f, 0.1f, 0.6f,"Capsule","Normal",2.2f);
+        Block legRight  = new Block(new Vector3f( 2.6f, 0.0f, 0.0f), new Vector3f( 1.3f, 0.0f, 0.0f), 1.1f, 0.1f, 0.6f,"Box","Normal",1f);
+        Block flipper1  = new Block(new Vector3f( 0.0f, 0.0f, 3.6f), new Vector3f( 0.0f, 0.0f, 1.2f), 0.6f, 0.1f, 2.2f,"Box","XAxis",1f);
+        Block flipper2  = new Block(new Vector3f( 0.0f, 0.0f,-3.6f), new Vector3f( 0.0f, 0.0f,-1.2f), 0.6f, 0.1f, 2.2f,"Box","XAxis",1f);
+        Block head      = new Block(new Vector3f(-2.0f, 0.0f, 0.0f), new Vector3f(-1.3f, 0.0f, 0.0f), 0.5f, 0.5f, 0.5f,"Capsule","Normal",1f);
         
         rootBlock.addLimb(legRight);
         rootBlock.addLimb(legLeft);
-        //legRight.addLimb(legRight3);
+        legLeft.addLimb(flipper1);
+        legLeft.addLimb(flipper2);
+        //legLeft.addLimb(head);
         
         Alien alien = new Alien(rootBlock);
 
         // Create that alien in the simulation, with the Brain interface used to control it.
-        Brain brain = initAlien(alien, new Vector3f(0f, 5f, -10f));
-
+        Brain brain = initAlien(alien, new Vector3f(0f, 5f, -5f));
+        brain.still();
         // Control the instantiated alien (what the neural network will do)
         initKeys(brain);
     }
@@ -94,7 +103,7 @@ public class Simulator extends SimpleApplication implements ActionListener {
         Brain brain = new Brain();
 
         Block rootBlock = alien.rootBlock;
-        Node rootNode = createLimb(rootBlock.collisionShapeType,rootBlock.width, rootBlock.height, rootBlock.length, pos, true);
+        Node rootNode = createLimb(rootBlock.collisionShapeType,rootBlock.width, rootBlock.height, rootBlock.length, pos, true,rootBlock.mass);
 
         brain.nodes.add(rootNode);
 
@@ -109,7 +118,7 @@ public class Simulator extends SimpleApplication implements ActionListener {
         for (Block b : parentBlock.getConnectedLimbs()) {
             //Node n = createLimb(b.collisionShapeType,b.width, b.height, b.length, parentNode.getLocalTranslation().add(b.getPosition()), true);
             //HingeJoint joint = joinHingeJoint(parentNode, n, parentNode.getLocalTranslation().add(b.getHingePosition()), Vector3f.UNIT_Z, Vector3f.UNIT_Z,b.hingeType);
-            Node n = createLimb(b.collisionShapeType,b.width, b.height, b.length, parentNode.getWorldTranslation().add(b.getPosition()), true);
+            Node n = createLimb(b.collisionShapeType,b.width, b.height, b.length, parentNode.getWorldTranslation().add(b.getPosition()), true, b.mass);
             HingeJoint joint = joinHingeJoint(parentNode, n, parentNode.getWorldTranslation().add(b.getHingePosition()), b.hingeType);
             rootNode.attachChild(n);
             brain.joints.add(joint);
@@ -118,22 +127,23 @@ public class Simulator extends SimpleApplication implements ActionListener {
         }
     }
 
-    private Node createLimb(String collisionType, float width, float height, float length,Vector3f location, boolean rotate) {
+    private Node createLimb(String collisionType, float width, float height, float length,Vector3f location, boolean rotate,float mass) {
         int axis = rotate ? PhysicsSpace.AXIS_X : PhysicsSpace.AXIS_Y;
         if (collisionType.equals("Capsule")){
             CapsuleCollisionShape shape = new CapsuleCollisionShape(width, height, axis);
-            RigidBodyControl rigidBodyControl = new RigidBodyControl(shape, 1);
+            RigidBodyControl rigidBodyControl = new RigidBodyControl(shape, mass);
             Node node = new Node("Limb");
             node.setLocalTranslation(location);
             node.addControl(rigidBodyControl);
             return node;
         } else {
             BoxCollisionShape shape = new BoxCollisionShape(new Vector3f(width,height,length));
-            RigidBodyControl rigidBodyControl = new RigidBodyControl(shape, 1);
+            RigidBodyControl rigidBodyControl = new RigidBodyControl(shape, mass);
             Node node = new Node("Limb");
             node.setLocalTranslation(location);
             node.addControl(rigidBodyControl);
             return node;
+            
         }
     }
 
@@ -145,13 +155,14 @@ public class Simulator extends SimpleApplication implements ActionListener {
         if(hingeType.equals("XAxis")){
             axisA = Vector3f.UNIT_X;
             axisB = Vector3f.UNIT_X;
-            //joint.setLimit(0f, 0f, 0f,0.2f,0.5f);
         } else {
             axisA = Vector3f.UNIT_Z;
             axisB = Vector3f.UNIT_Z;
         }
         HingeJoint joint = new HingeJoint(A.getControl(RigidBodyControl.class), B.getControl(RigidBodyControl.class), pivotA, pivotB, axisA, axisB);
-        
+        if(hingeType.equals("XAxis")){
+            //joint.setLimit(0.5f, 1f, 0.5f,0.2f,0.5f);
+        }
         return joint;
     }
 
@@ -162,8 +173,11 @@ public class Simulator extends SimpleApplication implements ActionListener {
             int numberOfJoints = Math.min(brainToControl.joints.size(), jointKeys.length / 2);
             
             for (int i = 0; i < numberOfJoints; i++) {
+                
                 if (("Alien joint " + ((Integer) i).toString() + " clockwise").equals(string)) {
                     if (bln) {
+                        brainToControl.joints.get(i).getBodyA().activate();
+                        brainToControl.joints.get(i).getBodyB().activate();
                         brainToControl.joints.get(i).enableMotor(true, 1 * limbTargetVolcity, limbPower);
                         System.out.println("G1");
                     } else {
@@ -173,6 +187,8 @@ public class Simulator extends SimpleApplication implements ActionListener {
                 }
                 if (("Alien joint " + ((Integer) i).toString() + " anticlockwise").equals(string)) {
                     if (bln) {
+                        brainToControl.joints.get(i).getBodyA().activate();
+                        brainToControl.joints.get(i).getBodyB().activate();
                         brainToControl.joints.get(i).enableMotor(true, -1 * limbTargetVolcity, limbPower);
                         System.out.println("J1");
                     } else {
@@ -198,17 +214,17 @@ public class Simulator extends SimpleApplication implements ActionListener {
     }
 
     private void createRagDoll() {
-        shoulders  = createLimb("Capsule",0.2f, 1.0f,1, new Vector3f(0.00f, 1.5f, 10), true);
-        Node uArmL = createLimb("Capsule",0.2f, 0.5f,1, new Vector3f(-0.75f, 0.8f, 10), false);
-        Node uArmR = createLimb("Capsule",0.2f, 0.5f,1, new Vector3f(0.75f, 0.8f, 10), false);
-        Node lArmL = createLimb("Capsule",0.2f, 0.5f,1, new Vector3f(-0.75f, -0.2f, 10), false);
-        Node lArmR = createLimb("Capsule",0.2f, 0.5f,1, new Vector3f(0.75f, -0.2f, 10), false);
-        Node body  = createLimb("Capsule",0.2f, 1.0f,1, new Vector3f(0.00f, 0.5f, 10), false);
-        Node hips  = createLimb("Capsule",0.2f, 0.5f,1, new Vector3f(0.00f, -0.5f, 10), true);
-        Node uLegL = createLimb("Capsule",0.2f, 0.5f,1, new Vector3f(-0.25f, -1.2f, 10), false);
-        Node uLegR = createLimb("Capsule",0.2f, 0.5f,1, new Vector3f(0.25f, -1.2f, 10), false);
-        Node lLegL = createLimb("Capsule",0.2f, 0.5f,1, new Vector3f(-0.25f, -2.2f, 10), false);
-        Node lLegR = createLimb("Capsule",0.2f, 0.5f,1, new Vector3f(0.25f, -2.2f, 10), false);
+        shoulders  = createLimb("Capsule",0.2f, 1.0f,1, new Vector3f(0.00f, 1.5f, 10), true,1f);
+        Node uArmL = createLimb("Capsule",0.2f, 0.5f,1, new Vector3f(-0.75f, 0.8f, 10), false,1f);
+        Node uArmR = createLimb("Capsule",0.2f, 0.5f,1, new Vector3f(0.75f, 0.8f, 10), false,1f);
+        Node lArmL = createLimb("Capsule",0.2f, 0.5f,1, new Vector3f(-0.75f, -0.2f, 10), false,1f);
+        Node lArmR = createLimb("Capsule",0.2f, 0.5f,1, new Vector3f(0.75f, -0.2f, 10), false,1f);
+        Node body  = createLimb("Capsule",0.2f, 1.0f,1, new Vector3f(0.00f, 0.5f, 10), false,1f);
+        Node hips  = createLimb("Capsule",0.2f, 0.5f,1, new Vector3f(0.00f, -0.5f, 10), true,1f);
+        Node uLegL = createLimb("Capsule",0.2f, 0.5f,1, new Vector3f(-0.25f, -1.2f, 10), false,1f);
+        Node uLegR = createLimb("Capsule",0.2f, 0.5f,1, new Vector3f(0.25f, -1.2f, 10), false,1f);
+        Node lLegL = createLimb("Capsule",0.2f, 0.5f,1, new Vector3f(-0.25f, -2.2f, 10), false,1f);
+        Node lLegR = createLimb("Capsule",0.2f, 0.5f,1, new Vector3f(0.25f, -2.2f, 10), false,1f);
 
         join(body, shoulders, new Vector3f(0f, 1.4f, 10));
         join(body, hips, new Vector3f(0f, -0.5f, 10));
@@ -244,9 +260,10 @@ public class Simulator extends SimpleApplication implements ActionListener {
         Vector3f pivotB = B.worldToLocal(connectionPoint, new Vector3f());
         ConeJoint joint = new ConeJoint(A.getControl(RigidBodyControl.class), B.getControl(RigidBodyControl.class), pivotA, pivotB);
         joint.setLimit(1f, 1f, 0);
+        
         return joint;
     }
-
+    
     public static void createPhysicsTestWorld(Node rootNode, AssetManager assetManager, PhysicsSpace space) {
         AmbientLight light = new AmbientLight();
         light.setColor(ColorRGBA.LightGray);
@@ -293,6 +310,19 @@ public class Simulator extends SimpleApplication implements ActionListener {
     public void simpleUpdate(float tpf) {
         if (applyForce) {
             shoulders.getControl(RigidBodyControl.class).applyForce(upforce, Vector3f.ZERO);
+        }
+        time = this.getTimer().getTimeInSeconds();
+        if (time>0.2 && !doneStill1){
+            brainToControl.still();
+            doneStill1 = true;
+        }
+        if (time>0.5 && !doneStill2){
+            brainToControl.still();
+            doneStill2 = true;
+        }
+        if (time>0.8 && !doneStill3){
+            brainToControl.still();
+            doneStill3 = true;
         }
     }
 
