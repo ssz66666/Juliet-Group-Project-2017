@@ -11,6 +11,7 @@ public class Block {
     public float height;
     public float length;
     public float mass;
+    public float friction;
     public String collisionShapeType;
     public String hingeType;
     private LinkedList<Block> connectedLimbs = new LinkedList<Block>(); // List of Blocks that this is the parent of

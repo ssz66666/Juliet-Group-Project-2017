@@ -19,12 +19,17 @@ import com.jme3.input.controls.MouseButtonTrigger;
 import com.jme3.light.AmbientLight;
 import com.jme3.material.Material;
 import com.jme3.math.ColorRGBA;
+import com.jme3.math.Vector2f;
 import com.jme3.math.Vector3f;
+import com.jme3.renderer.ViewPort;
 import com.jme3.scene.Geometry;
 import com.jme3.scene.Node;
 import com.jme3.scene.shape.Box;
 import com.jme3.scene.shape.Sphere;
 import com.jme3.system.Timer;
+import com.jme3.texture.Texture;
+import com.jme3.texture.Texture.WrapMode;
+import com.jme3.ui.Picture;
 
 public class Simulator extends SimpleApplication implements ActionListener {
 
@@ -33,9 +38,10 @@ public class Simulator extends SimpleApplication implements ActionListener {
     private Node shoulders;
     private Vector3f upforce = new Vector3f(0, 200, 0);
     private boolean applyForce = false;
-    float limbPower = 1.0f;
-    float limbTargetVolcity = 3f;
+    float limbPower = 0.8f;
+    float limbTargetVolcity = 2f;
     float time;
+    
     boolean doneStill1 = false;
     boolean doneStill2 = false;
     boolean doneStill3 = false;
@@ -55,6 +61,7 @@ public class Simulator extends SimpleApplication implements ActionListener {
         // Application start code
 
         // Setup Physics
+        viewPort.setBackgroundColor(new ColorRGBA(98/255f, 167/255f, 224/255f,1f));
         bulletAppState = new BulletAppState();
         stateManager.attach(bulletAppState);
         bulletAppState.setDebugEnabled(true);
@@ -62,12 +69,12 @@ public class Simulator extends SimpleApplication implements ActionListener {
         createRagDoll();
 
         // Create an example of an alien (what the editor will do)
-        Block rootBlock = new Block(new Vector3f( 0.0f, 0.0f, 0.0f), new Vector3f( 0.0f, 0.0f, 0.0f), 0.8f, 0.5f, 0.7f,"Capsule","Normal",2.2f);
-        Block legLeft   = new Block(new Vector3f(-2.6f, 0.0f, 0.0f), new Vector3f(-1.3f, 0.0f, 0.0f), 1.1f, 0.1f, 0.6f,"Capsule","Normal",2.2f);
-        Block legRight  = new Block(new Vector3f( 2.6f, 0.0f, 0.0f), new Vector3f( 1.3f, 0.0f, 0.0f), 1.1f, 0.1f, 0.6f,"Box","Normal",1f);
+        Block rootBlock = new Block(new Vector3f( 0.0f, 0.0f, 0.0f), new Vector3f( 0.0f, 0.0f, 0.0f), 0.8f, 0.5f, 0.7f,"Capsule","ZAxis",2.2f);
+        Block legLeft   = new Block(new Vector3f(-2.6f, 0.0f, 0.0f), new Vector3f(-1.3f, 0.0f, 0.0f), 1.1f, 0.1f, 0.6f,"Capsule","ZAxis",2.2f);
+        Block legRight  = new Block(new Vector3f( 2.6f, 0.0f, 0.0f), new Vector3f( 1.3f, 0.0f, 0.0f), 1.1f, 0.1f, 0.6f,"Box","YAxis",1f);
         Block flipper1  = new Block(new Vector3f( 0.0f, 0.0f, 3.6f), new Vector3f( 0.0f, 0.0f, 1.2f), 0.6f, 0.1f, 2.2f,"Box","XAxis",1f);
         Block flipper2  = new Block(new Vector3f( 0.0f, 0.0f,-3.6f), new Vector3f( 0.0f, 0.0f,-1.2f), 0.6f, 0.1f, 2.2f,"Box","XAxis",1f);
-        Block head      = new Block(new Vector3f(-2.0f, 0.0f, 0.0f), new Vector3f(-1.3f, 0.0f, 0.0f), 0.5f, 0.5f, 0.5f,"Capsule","Normal",1f);
+        Block head      = new Block(new Vector3f(-2.0f, 0.0f, 0.0f), new Vector3f(-1.3f, 0.0f, 0.0f), 0.5f, 0.5f, 0.5f,"Capsule","ZAxis",1f);
         
         rootBlock.addLimb(legRight);
         rootBlock.addLimb(legLeft);
@@ -155,6 +162,12 @@ public class Simulator extends SimpleApplication implements ActionListener {
         if(hingeType.equals("XAxis")){
             axisA = Vector3f.UNIT_X;
             axisB = Vector3f.UNIT_X;
+        } else if(hingeType.equals("YAxis")){
+            axisA = Vector3f.UNIT_Y;
+            axisB = Vector3f.UNIT_Y;
+        } else if(hingeType.equals("ZAxis")){
+            axisA = Vector3f.UNIT_Z;
+            axisB = Vector3f.UNIT_Z;
         } else {
             axisA = Vector3f.UNIT_Z;
             axisB = Vector3f.UNIT_Z;
@@ -264,22 +277,45 @@ public class Simulator extends SimpleApplication implements ActionListener {
         return joint;
     }
     
-    public static void createPhysicsTestWorld(Node rootNode, AssetManager assetManager, PhysicsSpace space) {
+    public void createPhysicsTestWorld(Node rootNode, AssetManager assetManager, PhysicsSpace space) {
         AmbientLight light = new AmbientLight();
         light.setColor(ColorRGBA.LightGray);
         rootNode.addLight(light);
 
+        
+        Texture grassTexture;
+        Texture skyTexture;
+        grassTexture = assetManager.loadTexture("Textures/grass.jpg");
+        grassTexture.setWrap(WrapMode.Repeat);
+        skyTexture = assetManager.loadTexture("Textures/sky.jpg");
+        skyTexture.setWrap(WrapMode.Repeat);
         Material material = new Material(assetManager, "Common/MatDefs/Misc/Unshaded.j3md");
-        material.setTexture("ColorMap", assetManager.loadTexture("Interface/Logo/Monkey.jpg"));
-
+        Material sky = new Material(assetManager, "Common/MatDefs/Misc/Unshaded.j3md");
+        sky.setTexture("ColorMap", skyTexture);
+        material.setTexture("ColorMap",grassTexture);
+        
+        
+        /*
+        Picture p = new Picture("background");
+        p.setMaterial( sky );
+        p.setWidth(settings.getWidth());
+        p.setHeight(settings.getHeight());
+        p.setPosition(0, 0);
+        p.updateGeometricState();
+        ViewPort pv = renderManager.createPreView("background", cam);
+        pv.setClearFlags(true, true, true);
+        pv.attachScene(p);
+        viewPort.setClearFlags(false, true, true);
+        */
         Box floorBox = new Box(140, 0.25f, 140);
         Geometry floorGeometry = new Geometry("Floor", floorBox);
         floorGeometry.setMaterial(material);
-        floorGeometry.setLocalTranslation(0, -5, 0);
+        floorGeometry.setLocalTranslation(0, -5, 0);    
 //        Plane plane = new Plane();
 //        plane.setOriginNormal(new Vector3f(0, 0.25f, 0), Vector3f.UNIT_Y);
 //        floorGeometry.addControl(new RigidBodyControl(new PlaneCollisionShape(plane), 0));
         floorGeometry.addControl(new RigidBodyControl(0));
+        floorGeometry.getMesh().scaleTextureCoordinates(new Vector2f(20,20));
         rootNode.attachChild(floorGeometry);
         space.add(floorGeometry);
         /*
@@ -328,6 +364,8 @@ public class Simulator extends SimpleApplication implements ActionListener {
 
     public static void main(String[] args) {
         Simulator app = new Simulator();
+        //AppSettings app2 = new AppSettings(true);
+        //
         app.start();
     }
 }
