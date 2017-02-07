@@ -1,7 +1,10 @@
 package julietgroupproject;
 
+import com.jme3.bullet.control.RigidBodyControl;
+import com.jme3.math.Matrix3f;
 import java.util.LinkedList;
 import com.jme3.math.Vector3f;
+import com.jme3.scene.Geometry;
 
 public class Block {
 
@@ -12,6 +15,7 @@ public class Block {
     public float length;
     public float mass;
     public float friction;
+    public Matrix3f rotation = Matrix3f.IDENTITY;
     public String collisionShapeType;
     public String hingeType;
     private LinkedList<Block> connectedLimbs = new LinkedList<Block>(); // List of Blocks that this is the parent of
@@ -27,7 +31,16 @@ public class Block {
         this.hingeType = hingeType;
         this.mass = mass;
     }
-
+    
+    public void applyProperties(Geometry g){
+        // This function is used when the block is instantiated, used to make the properties of the geometry the same as the block.
+        // As we add more properties for the blocks, this functions should be edited to apply them when the block is created
+        g.getControl(RigidBodyControl.class).setPhysicsRotation(rotation);
+        
+        // Set the friction of the limb
+        //g.getControl(RigidBodyControl.class).setFriction(friction);
+    }
+    
     public Vector3f getPosition() {
         return pos;
     }
@@ -42,6 +55,48 @@ public class Block {
 
     public void setHingePosition(Vector3f hingePos) {
         this.hingePos = hingePos;
+    }
+
+    public void setHeight(float height) {
+        this.height = height;
+    }
+
+    public void setLength(float length) {
+        this.length = length;
+    }
+
+    public void setHingeType(String hingeType) {
+        this.hingeType = hingeType;
+    }
+
+    public void setPos(Vector3f pos) {
+        this.pos = pos;
+    }
+
+    public void setHingePos(Vector3f hingePos) {
+        this.hingePos = hingePos;
+    }
+
+    public void setWidth(float width) {
+        this.width = width;
+    }
+    
+
+
+    public void setMass(float mass) {
+        this.mass = mass;
+    }
+
+    public void setFriction(float friction) {
+        this.friction = friction;
+    }
+
+    public void setRotation(Matrix3f rotation) {
+        this.rotation = rotation;
+    }
+
+    public void setCollisionShapeType(String collisionShapeType) {
+        this.collisionShapeType = collisionShapeType;
     }
 
     public LinkedList<Block> getConnectedLimbs() {
